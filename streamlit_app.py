@@ -1,5 +1,6 @@
 import os
 import re
+import html
 from typing import List, Tuple
 
 import streamlit as st
@@ -92,6 +93,21 @@ def render_custom_styles() -> None:
             color: #0f172a;
         }
 
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4,
+        .stApp p, .stApp span, .stApp div, .stApp li,
+        .stApp label, .stApp small {
+            color: #0f172a !important;
+        }
+
+        .stTextInput input {
+            color: #0f172a !important;
+            background: #ffffff !important;
+        }
+
+        .stTextInput input::placeholder {
+            color: #6b7280 !important;
+        }
+
         [data-testid="stSidebar"] {
             background: #f7fafc;
         }
@@ -127,6 +143,27 @@ def render_custom_styles() -> None:
 
         .stButton > button {
             font-weight: 600;
+        }
+
+        .qa-card {
+            border: 1px solid #d8e4f0;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 0.85rem 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+        }
+
+        .qa-label {
+            font-weight: 700;
+            color: #1e3a8a !important;
+            margin-bottom: 0.3rem;
+        }
+
+        .qa-answer {
+            color: #111827 !important;
+            line-height: 1.55;
+            white-space: pre-wrap;
         }
         </style>
         """,
@@ -204,14 +241,22 @@ def main() -> None:
             st.session_state.chat_history = []
             st.rerun()
 
-    for item in st.session_state.chat_history:
-        with st.chat_message("user"):
-            st.write(item["question"])
-        with st.chat_message("assistant"):
-            st.write(f"Category: {item['category']}")
-            st.write(item["answer"])
-            with st.expander("Context used"):
-                st.write(item["context"])
+    for i, item in enumerate(st.session_state.chat_history, start=1):
+        q = html.escape(item["question"])
+        c = html.escape(item["category"])
+        a = html.escape(item["answer"])
+        st.markdown(
+            f"""
+            <section class="qa-card">
+                <div class="qa-label">Q{i}: {q}</div>
+                <div><strong>Category:</strong> {c}</div>
+                <div class="qa-answer">{a}</div>
+            </section>
+            """,
+            unsafe_allow_html=True,
+        )
+        with st.expander(f"Context used for Q{i}"):
+            st.write(item["context"])
 
     st.subheader("Ask a question")
     st.text_input(
