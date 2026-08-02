@@ -88,18 +88,25 @@ def render_custom_styles() -> None:
     st.markdown(
         """
         <style>
-        .stApp {
-            background: linear-gradient(180deg, #f4f9ff 0%, #fcfff7 100%);
-            color: #0f172a;
+        :root {
+            --brand-ink: #0f172a;
+            --brand-deep: #0b3b2e;
+            --brand-teal: #0f766e;
+            --brand-blue: #2563eb;
+            --panel: #ffffff;
+            --line: #d8e4f0;
         }
 
-        .stApp h1, .stApp h2, .stApp h3, .stApp h4,
-        .stApp p, .stApp li, .stApp label, .stApp small {
-            color: #0f172a !important;
+        .stApp {
+            background:
+                radial-gradient(circle at 10% 0%, #eaf4ff 0%, transparent 38%),
+                radial-gradient(circle at 95% 10%, #e8fff4 0%, transparent 40%),
+                linear-gradient(180deg, #f7fbff 0%, #fcfff9 100%);
+            color: var(--brand-ink);
         }
 
         .stTextInput input {
-            color: #0f172a !important;
+            color: var(--brand-ink) !important;
             background: #ffffff !important;
             border: 1px solid #cbd5e1 !important;
         }
@@ -113,24 +120,21 @@ def render_custom_styles() -> None:
             box-shadow: 0 0 0 1px #2563eb !important;
         }
 
-        [data-testid="stSidebar"] {
-            background: #f7fafc;
-        }
-
         .app-hero {
-            border: 1px solid #d8e4f0;
-            border-radius: 16px;
-            padding: 1rem 1.1rem;
-            background: #ffffff;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 1.15rem 1.2rem;
+            background: var(--panel);
             margin-bottom: 1rem;
-            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
         }
 
         .hero-title {
-            font-family: 'Segoe UI', 'Trebuchet MS', sans-serif;
+            font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
             font-weight: 700;
-            font-size: 1.6rem;
-            color: #0b3b2e;
+            font-size: 2rem;
+            letter-spacing: 0.01em;
+            color: var(--brand-deep);
             margin: 0;
         }
 
@@ -146,16 +150,49 @@ def render_custom_styles() -> None:
             font-size: 0.9rem;
         }
 
-        .stButton > button {
+        .status-chip {
+            display: inline-block;
+            padding: 0.4rem 0.65rem;
+            border-radius: 999px;
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1e3a8a;
             font-weight: 600;
-            background: #1f2937 !important;
+            font-size: 0.88rem;
+            margin-right: 0.4rem;
+        }
+
+        .stButton > button,
+        [data-testid="stFormSubmitButton"] > button {
+            font-weight: 700;
+            border-radius: 10px !important;
+            min-height: 2.8rem;
+        }
+
+        .stButton > button {
+            background: var(--brand-teal) !important;
             color: #ffffff !important;
-            border: 1px solid #0f172a !important;
+            border: 1px solid #0f5f59 !important;
+        }
+
+        .stButton > button p,
+        [data-testid="stFormSubmitButton"] > button p {
+            color: #ffffff !important;
         }
 
         .stButton > button:hover {
-            background: #0f172a !important;
+            background: #0d5d57 !important;
             color: #ffffff !important;
+        }
+
+        [data-testid="stFormSubmitButton"] > button {
+            background: var(--brand-blue) !important;
+            border: 1px solid #1d4ed8 !important;
+            color: #ffffff !important;
+        }
+
+        [data-testid="stFormSubmitButton"] > button:hover {
+            background: #1e4fd1 !important;
         }
 
         .stButton > button:focus {
@@ -165,9 +202,9 @@ def render_custom_styles() -> None:
         }
 
         .qa-card {
-            border: 1px solid #d8e4f0;
+            border: 1px solid var(--line);
             border-radius: 14px;
-            background: #ffffff;
+            background: var(--panel);
             padding: 0.85rem 1rem;
             margin-bottom: 0.75rem;
             box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
@@ -190,24 +227,49 @@ def render_custom_styles() -> None:
     )
 
 
-def render_sidebar_status(has_key: bool, llm_ready: bool) -> None:
-    st.sidebar.header("Status")
-    st.sidebar.write(f"Secret loaded: {'Yes' if has_key else 'No'}")
-    st.sidebar.write(f"LLM client ready: {'Yes' if llm_ready else 'No'}")
+def render_status_bar(has_key: bool, llm_ready: bool) -> None:
+    c1, c2, c3, c4 = st.columns([1.6, 1.6, 1.4, 1.1])
+    with c1:
+        st.markdown(
+            f"<span class='status-chip'>Secret: {'Loaded' if has_key else 'Missing'}</span>",
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown(
+            f"<span class='status-chip'>LLM: {'Ready' if llm_ready else 'Not ready'}</span>",
+            unsafe_allow_html=True,
+        )
+    with c3:
+        if st.button("Run health check", use_container_width=True):
+            if not llm_ready:
+                st.session_state["health_status"] = ("error", "LLM is not initialized.")
+            else:
+                try:
+                    pong = get_llm().invoke("Reply with exactly: OK").content.strip()
+                    st.session_state["health_status"] = ("success", f"Model reachable: {pong}")
+                except Exception as exc:
+                    st.session_state["health_status"] = ("error", f"Health check failed: {exc}")
+    with c4:
+        if st.button("Clear chat", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
 
-    if st.sidebar.button("Run health check"):
-        if not llm_ready:
-            st.sidebar.error("LLM client is not initialized.")
-            return
-        try:
-            pong = get_llm().invoke("Reply with exactly: OK").content.strip()
-            st.sidebar.success(f"Model reachable: {pong}")
-        except Exception as exc:
-            st.sidebar.error(f"Health check failed: {exc}")
+    status = st.session_state.get("health_status")
+    if status:
+        level, message = status
+        if level == "success":
+            st.success(message)
+        else:
+            st.error(message)
 
 
 def main() -> None:
-    st.set_page_config(page_title="Handbook Assistant", page_icon="📘", layout="centered")
+    st.set_page_config(
+        page_title="Handbook Assistant",
+        page_icon="📘",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
     render_custom_styles()
     init_session_state()
 
@@ -236,7 +298,7 @@ def main() -> None:
 
     has_key = bool(get_api_key())
     if not has_key:
-        render_sidebar_status(has_key=False, llm_ready=False)
+        render_status_bar(has_key=False, llm_ready=False)
         st.error("GROQ_API_KEY is missing.")
         st.info(
             "For Streamlit Cloud: open App Settings -> Secrets and add GROQ_API_KEY. "
@@ -248,17 +310,11 @@ def main() -> None:
         llm = get_llm()
         llm_ready = True
     except Exception as exc:
-        render_sidebar_status(has_key=True, llm_ready=False)
+        render_status_bar(has_key=True, llm_ready=False)
         st.error(f"Failed to initialize LLM: {exc}")
         st.stop()
 
-    render_sidebar_status(has_key=has_key, llm_ready=llm_ready)
-
-    top_left, top_right = st.columns([3, 1])
-    with top_right:
-        if st.button("Clear chat", use_container_width=True):
-            st.session_state.chat_history = []
-            st.rerun()
+    render_status_bar(has_key=has_key, llm_ready=llm_ready)
 
     for i, item in enumerate(st.session_state.chat_history, start=1):
         q = html.escape(item["question"])
