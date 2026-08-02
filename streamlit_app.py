@@ -278,13 +278,13 @@ def main() -> None:
             st.write(item["context"])
 
     st.subheader("Ask a question")
-    st.text_input(
-        "Type your question",
-        key="question_input",
-        placeholder="How many paid leave days do I get?",
-    )
-    user_question = st.session_state.get("question_input", "").strip()
-    ask = st.button("Ask question", type="primary", use_container_width=True)
+    with st.form("ask_form", clear_on_submit=True):
+        user_question = st.text_input(
+            "Type your question",
+            key="question_input",
+            placeholder="How many paid leave days do I get?",
+        ).strip()
+        ask = st.form_submit_button("Ask question", type="primary", use_container_width=True)
 
     if ask:
         if not user_question:
@@ -306,7 +306,6 @@ def main() -> None:
                 "context": context,
             }
         )
-        st.session_state["question_input"] = ""
         st.rerun()
 
 
