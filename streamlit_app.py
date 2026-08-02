@@ -87,38 +87,46 @@ def render_custom_styles() -> None:
     st.markdown(
         """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
-
         .stApp {
-            background: radial-gradient(circle at 10% 20%, #f0f8ff 0%, #f8fff2 45%, #fffef8 100%);
+            background: linear-gradient(180deg, #f4f9ff 0%, #fcfff7 100%);
+            color: #0f172a;
+        }
+
+        [data-testid="stSidebar"] {
+            background: #f7fafc;
         }
 
         .app-hero {
-            border: 1px solid #e5efd7;
-            border-radius: 18px;
-            padding: 1.2rem;
-            background: linear-gradient(125deg, #f5ffe0 0%, #f2f9ff 50%, #fff9ed 100%);
+            border: 1px solid #d8e4f0;
+            border-radius: 16px;
+            padding: 1rem 1.1rem;
+            background: #ffffff;
             margin-bottom: 1rem;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
         }
 
         .hero-title {
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: 'Segoe UI', 'Trebuchet MS', sans-serif;
             font-weight: 700;
             font-size: 1.6rem;
-            color: #153f30;
+            color: #0b3b2e;
             margin: 0;
         }
 
         .hero-text {
-            font-family: 'Manrope', sans-serif;
-            color: #2f4f4f;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            color: #1f2937;
             margin-top: 0.4rem;
         }
 
         .small-note {
-            font-family: 'Manrope', sans-serif;
-            color: #4c5f6a;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            color: #374151;
             font-size: 0.9rem;
+        }
+
+        .stButton > button {
+            font-weight: 600;
         }
         </style>
         """,
@@ -163,10 +171,12 @@ def main() -> None:
         col1, col2 = st.columns(2)
         with col1:
             if st.button("How many paid leave days do I get?", use_container_width=True):
-                st.session_state.prefill_question = "How many paid leave days do I get?"
+                st.session_state["question_input"] = "How many paid leave days do I get?"
+                st.rerun()
         with col2:
             if st.button("Tell me a fun fact about octopuses", use_container_width=True):
-                st.session_state.prefill_question = "Tell me a fun fact about octopuses"
+                st.session_state["question_input"] = "Tell me a fun fact about octopuses"
+                st.rerun()
 
     has_key = bool(get_api_key())
     if not has_key:
@@ -203,16 +213,20 @@ def main() -> None:
             with st.expander("Context used"):
                 st.write(item["context"])
 
-    if "prefill_question" in st.session_state:
-        default_hint = st.session_state.pop("prefill_question")
-        st.caption(f"Suggested prompt copied: {default_hint}")
-        user_question = st.chat_input("Ask your question here...")
-        if not user_question:
-            user_question = default_hint
-    else:
-        user_question = st.chat_input("Ask your question here...")
+    st.subheader("Ask a question")
+    st.text_input(
+        "Type your question",
+        key="question_input",
+        placeholder="How many paid leave days do I get?",
+    )
+    user_question = st.session_state.get("question_input", "").strip()
+    ask = st.button("Ask question", type="primary", use_container_width=True)
 
-    if user_question:
+    if ask:
+        if not user_question:
+            st.warning("Please type a question before asking.")
+            st.stop()
+
         with st.spinner("Thinking..."):
             category = classify_question(llm, user_question)
             if category == "policy":
@@ -228,6 +242,7 @@ def main() -> None:
                 "context": context,
             }
         )
+        st.session_state["question_input"] = ""
         st.rerun()
 
 
