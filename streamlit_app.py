@@ -94,18 +94,23 @@ def render_custom_styles() -> None:
         }
 
         .stApp h1, .stApp h2, .stApp h3, .stApp h4,
-        .stApp p, .stApp span, .stApp div, .stApp li,
-        .stApp label, .stApp small {
+        .stApp p, .stApp li, .stApp label, .stApp small {
             color: #0f172a !important;
         }
 
         .stTextInput input {
             color: #0f172a !important;
             background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
         }
 
         .stTextInput input::placeholder {
             color: #6b7280 !important;
+        }
+
+        .stTextInput input:focus {
+            border: 1px solid #2563eb !important;
+            box-shadow: 0 0 0 1px #2563eb !important;
         }
 
         [data-testid="stSidebar"] {
@@ -143,6 +148,20 @@ def render_custom_styles() -> None:
 
         .stButton > button {
             font-weight: 600;
+            background: #1f2937 !important;
+            color: #ffffff !important;
+            border: 1px solid #0f172a !important;
+        }
+
+        .stButton > button:hover {
+            background: #0f172a !important;
+            color: #ffffff !important;
+        }
+
+        .stButton > button:focus {
+            color: #ffffff !important;
+            outline: 2px solid #2563eb !important;
+            outline-offset: 1px !important;
         }
 
         .qa-card {
