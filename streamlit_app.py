@@ -78,12 +78,99 @@ def answer_general(llm: ChatGroq, question: str) -> Tuple[str, str]:
     return "(no retrieval -- general question)", answer
 
 
+def init_session_state() -> None:
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+
+def render_custom_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
+        .stApp {
+            background: radial-gradient(circle at 10% 20%, #f0f8ff 0%, #f8fff2 45%, #fffef8 100%);
+        }
+
+        .app-hero {
+            border: 1px solid #e5efd7;
+            border-radius: 18px;
+            padding: 1.2rem;
+            background: linear-gradient(125deg, #f5ffe0 0%, #f2f9ff 50%, #fff9ed 100%);
+            margin-bottom: 1rem;
+        }
+
+        .hero-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 1.6rem;
+            color: #153f30;
+            margin: 0;
+        }
+
+        .hero-text {
+            font-family: 'Manrope', sans-serif;
+            color: #2f4f4f;
+            margin-top: 0.4rem;
+        }
+
+        .small-note {
+            font-family: 'Manrope', sans-serif;
+            color: #4c5f6a;
+            font-size: 0.9rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_sidebar_status(has_key: bool, llm_ready: bool) -> None:
+    st.sidebar.header("Status")
+    st.sidebar.write(f"Secret loaded: {'Yes' if has_key else 'No'}")
+    st.sidebar.write(f"LLM client ready: {'Yes' if llm_ready else 'No'}")
+
+    if st.sidebar.button("Run health check"):
+        if not llm_ready:
+            st.sidebar.error("LLM client is not initialized.")
+            return
+        try:
+            pong = get_llm().invoke("Reply with exactly: OK").content.strip()
+            st.sidebar.success(f"Model reachable: {pong}")
+        except Exception as exc:
+            st.sidebar.error(f"Health check failed: {exc}")
+
+
 def main() -> None:
     st.set_page_config(page_title="Handbook Assistant", page_icon="📘", layout="centered")
-    st.title("📘 Handbook Assistant")
-    st.caption("Policy questions are answered from handbook context. General questions use direct LLM response.")
+    render_custom_styles()
+    init_session_state()
 
-    if not get_api_key():
+    st.markdown(
+        """
+        <section class="app-hero">
+            <h1 class="hero-title">📘 Handbook Assistant</h1>
+            <p class="hero-text">Ask policy questions to get handbook-grounded answers, or ask general questions for direct LLM help.</p>
+            <p class="small-note">Routing mode: policy -> context answer, general -> direct answer</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.container(border=True):
+        st.write("Try one:")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("How many paid leave days do I get?", use_container_width=True):
+                st.session_state.prefill_question = "How many paid leave days do I get?"
+        with col2:
+            if st.button("Tell me a fun fact about octopuses", use_container_width=True):
+                st.session_state.prefill_question = "Tell me a fun fact about octopuses"
+
+    has_key = bool(get_api_key())
+    if not has_key:
+        render_sidebar_status(has_key=False, llm_ready=False)
         st.error("GROQ_API_KEY is missing.")
         st.info(
             "For Streamlit Cloud: open App Settings -> Secrets and add GROQ_API_KEY. "
@@ -91,30 +178,57 @@ def main() -> None:
         )
         st.stop()
 
-    llm = get_llm()
+    try:
+        llm = get_llm()
+        llm_ready = True
+    except Exception as exc:
+        render_sidebar_status(has_key=True, llm_ready=False)
+        st.error(f"Failed to initialize LLM: {exc}")
+        st.stop()
 
-    question = st.text_input("Ask a question", placeholder="How many paid leave days do I get?")
-    ask = st.button("Ask")
+    render_sidebar_status(has_key=has_key, llm_ready=llm_ready)
 
-    if ask:
-        if not question.strip():
-            st.warning("Please enter a question.")
-            st.stop()
+    top_left, top_right = st.columns([3, 1])
+    with top_right:
+        if st.button("Clear chat", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
 
+    for item in st.session_state.chat_history:
+        with st.chat_message("user"):
+            st.write(item["question"])
+        with st.chat_message("assistant"):
+            st.write(f"Category: {item['category']}")
+            st.write(item["answer"])
+            with st.expander("Context used"):
+                st.write(item["context"])
+
+    if "prefill_question" in st.session_state:
+        default_hint = st.session_state.pop("prefill_question")
+        st.caption(f"Suggested prompt copied: {default_hint}")
+        user_question = st.chat_input("Ask your question here...")
+        if not user_question:
+            user_question = default_hint
+    else:
+        user_question = st.chat_input("Ask your question here...")
+
+    if user_question:
         with st.spinner("Thinking..."):
-            category = classify_question(llm, question)
+            category = classify_question(llm, user_question)
             if category == "policy":
-                context, answer = answer_policy(llm, question)
+                context, answer = answer_policy(llm, user_question)
             else:
-                context, answer = answer_general(llm, question)
+                context, answer = answer_general(llm, user_question)
 
-        st.subheader("Result")
-        st.write("Category:", category)
-        st.write("Answer:")
-        st.success(answer)
-
-        with st.expander("Context used"):
-            st.write(context)
+        st.session_state.chat_history.append(
+            {
+                "question": user_question,
+                "category": category,
+                "answer": answer,
+                "context": context,
+            }
+        )
+        st.rerun()
 
 
 if __name__ == "__main__":
