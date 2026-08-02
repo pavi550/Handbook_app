@@ -1,0 +1,13 @@
+# Secrets and local environment files
+.env
+.env.*
+*.env
+
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/

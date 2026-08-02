@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+# Scan staged content for obvious secret patterns before commit.
+patterns='(gsk_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|GROQ_API_KEY[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_-]{16,})'
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged_files" ] && exit 0
+
+failed=0
+old_ifs=$IFS
+IFS='
+'
+
+for file in $staged_files; do
+  [ -z "$file" ] && continue
+
+  # Search the staged blob, not the working tree.
+  if git show ":$file" | grep -Ein "$patterns" >/dev/null 2>&1; then
+    echo "[secret-scan] Potential secret detected in staged file: $file"
+    echo "[secret-scan] Remove secrets before committing."
+    failed=1
+  fi
+done
+
+IFS=$old_ifs
+
+if [ "$failed" -ne 0 ]; then
+  echo "[secret-scan] Commit blocked."
+  exit 1
+fi
+
+exit 0
